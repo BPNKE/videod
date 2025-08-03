@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Video Downloader for videyd.com</title>
+    <title>Auto Video Downloader for videyd.com</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -21,7 +21,7 @@
             background-color: white;
             border-radius: 8px;
             box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-            max-width: 500px;
+            max-width: 600px;
         }
         input[type="text"] {
             width: 80%;
@@ -48,6 +48,10 @@
             color: #007bff;
             font-weight: bold;
         }
+        #status {
+            margin-top: 20px;
+            color: #333;
+        }
         .instructions {
             margin-top: 20px;
             text-align: left;
@@ -57,73 +61,120 @@
 </head>
 <body>
     <div class="container">
-        <h2>Video Downloader for videyd.com</h2>
-        <p>Paste the direct video URL (e.g., .mp4) from videyd.com</p>
-        <input type="text" id="videoUrl" placeholder="Paste direct video URL here">
-        <button onclick="initiateDownload()">Download Video</button>
+        <h2>Auto Video Downloader for videyd.com</h2>
+        <p>Enter the videyd.com video page URL (e.g., https://www.videyd.com/e/L9TG40Lm?lv1=doodlix1.org)</p>
+        <input type="text" id="pageUrl" placeholder="Paste video page URL here" value="https://www.videyd.com/e/L9TG40Lm?lv1=doodlix1.org">
+        <button onclick="findMediaUrl()">Find and Download Video</button>
+        <div id="status">Enter a URL and click the button to search for the video.</div>
         <a id="downloadLink" href="#" download>Click to Download Video</a>
         <div class="instructions">
-            <h3>How to Find the Video URL:</h3>
-            <ol>
-                <li>Open the video page (<a href="https://www.videyd.com/e/L9TG40Lm?lv1=doodlix1.org" target="_blank">videyd.com</a>) in your browser.</li>
-                <li>Right-click the video and select "Inspect" or press F12 to open Developer Tools.</li>
-                <li>Go to the "Network" tab, filter by "Media," and play the video to capture the URL (ends in .mp4, .m3u8, etc.).</li>
-                <li>Copy the full URL and paste it above.</li>
-                <li>If no URL appears, the video may be protected. See alternative tools below.</li>
-            </ol>
-            <h3>Alternative Tools:</h3>
-            <p>If the direct URL doesn’t work, try:</p>
+            <h3>Notes:</h3>
+            <p>This tool attempts to find the video URL automatically, but videyd.com/doodlix1.org may use protected or embedded players, which can prevent detection. If no video is found, try the following:</p>
             <ul>
-                <li><a href="https://www.getfvid.com/" target="_blank">Getfvid</a> or <a href="https://en.savefrom.net/" target="_blank">SaveFrom.net</a> (online downloaders).</li>
-                <li>Browser extensions like Video DownloadHelper.</li>
-                <li>Command-line tools like <a href="https://github.com/yt-dlp/yt-dlp" target="_blank">yt-dlp</a> (e.g., run <code>yt-dlp https://www.videyd.com/e/L9TG40Lm?lv1=doodlix1.org</code>).</li>
+                <li><b>Manual Inspection</b>: Open the video page, press F12, go to the "Network" tab, filter by "Media," play the video, and copy any .mp4 or .m3u8 URL.</li>
+                <li><b>Browser Extensions</b>: Use Video DownloadHelper (Chrome/Firefox) to detect streams.</li>
+                <li><b>yt-dlp</b>: Install <a href="https://github.com/yt-dlp/yt-dlp" target="_blank">yt-dlp</a> and run:
+                    <pre>yt-dlp https://www.videyd.com/e/L9TG40Lm?lv1=doodlix1.org</pre>
+                </li>
+                <li><b>Online Downloaders</b>: Try <a href="https://en.savefrom.net/" target="_blank">SaveFrom.net</a> or similar services.</li>
             </ul>
         </div>
     </div>
 
     <script>
-        function initiateDownload() {
-            const videoUrl = document.getElementById('videoUrl').value;
+        async function findMediaUrl() {
+            const pageUrl = document.getElementById('pageUrl').value;
+            const status = document.getElementById('status');
             const downloadLink = document.getElementById('downloadLink');
 
-            if (!videoUrl) {
-                alert('Please enter a valid video URL.');
+            if (!pageUrl) {
+                status.textContent = 'Please enter a valid video page URL.';
                 return;
             }
 
-            // Basic URL validation
-            if (!videoUrl.match(/\.(mp4|webm|m3u8)$/i)) {
-                alert('Please enter a valid video URL (e.g., ending in .mp4, .webm, or .m3u8). If you don’t see one, follow the instructions below.');
-                return;
+            status.textContent = 'Searching for video URL...';
+            downloadLink.style.display = 'none';
+
+            // Use a CORS proxy to bypass potential CORS restrictions (replace with a reliable proxy if needed)
+            const corsProxy = 'https://cors-anywhere.herokuapp.com/';
+            const targetUrl = corsProxy + pageUrl;
+
+            try {
+                // Fetch the page content
+                const response = await fetch(targetUrl, {
+                    headers: {
+                        'Origin': location.origin
+                    }
+                });
+                if (!response.ok) throw new Error('Failed to fetch the page.');
+
+                const text = await response.text();
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(text, 'text/html');
+
+                // Look for <video> or <source> tags
+                const videoElements = doc.querySelectorAll('video, source');
+                let mediaUrl = null;
+
+                for (let element of videoElements) {
+                    if (element.src && element.src.match(/\.(mp4|webm|m3u8)$/i)) {
+                        mediaUrl = element.src;
+                        break;
+                    }
+                    const srcAttr = element.getAttribute('data-src') || element.getAttribute('data-video-src');
+                    if (srcAttr && srcAttr.match(/\.(mp4|webm|m3u8)$/i)) {
+                        mediaUrl = srcAttr;
+                        break;
+                    }
+                }
+
+                // Look for embedded iframe sources (e.g., DoodStream)
+                const iframes = doc.querySelectorAll('iframe');
+                for (let iframe of iframes) {
+                    const iframeSrc = iframe.src;
+                    if (iframeSrc && iframeSrc.includes('doodlix1.org')) {
+                        // Attempt to fetch iframe content (may also need CORS proxy)
+                        try {
+                            const iframeResponse = await fetch(corsProxy + iframeSrc);
+                            const iframeText = await iframeResponse.text();
+                            const iframeDoc = parser.parseFromString(iframeText, 'text/html');
+                            const iframeVideos = iframeDoc.querySelectorAll('video, source');
+                            for (let vid of iframeVideos) {
+                                if (vid.src && vid.src.match(/\.(mp4|webm|m3u8)$/i)) {
+                                    mediaUrl = vid.src;
+                                    break;
+                                }
+                            }
+                        } catch (e) {
+                            console.error('Error fetching iframe:', e);
+                        }
+                    }
+                }
+
+                if (mediaUrl) {
+                    status.textContent = 'Video URL found! Initiating download...';
+                    downloadLink.href = mediaUrl;
+                    downloadLink.download = 'downloaded_video.mp4';
+                    downloadLink.style.display = 'inline';
+
+                    // Fetch the video as a blob
+                    const videoResponse = await fetch(mediaUrl, {
+                        headers: {
+                            'Origin': location.origin
+                        },
+                        mode: 'cors'
+                    });
+                    if (!videoResponse.ok) throw new Error('Failed to fetch the video.');
+                    const blob = await videoResponse.blob();
+                    const blobUrl = window.URL.createObjectURL(blob);
+                    downloadLink.href = blobUrl;
+                } else {
+                    status.textContent = 'No direct video URL found. Try manual inspection or alternative tools below.';
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                status.textContent = 'Error: Unable to find video URL. The site may use a protected player. See alternative tools below.';
             }
-
-            // Set the download link
-            downloadLink.href = videoUrl;
-            downloadLink.style.display = 'inline';
-            downloadLink.textContent = 'Click to Download Video';
-
-            // Attempt to fetch the video as a blob
-            fetch(videoUrl, {
-                headers: new Headers({
-                    'Origin': location.origin
-                }),
-                mode: 'cors'
-            })
-            .then(response => {
-                if (!response.ok) throw new Error('Network response was not ok');
-                return response.blob();
-            })
-            .then(blob => {
-                const blobUrl = window.URL.createObjectURL(blob);
-                downloadLink.href = blobUrl;
-                downloadLink.download = 'downloaded_video.mp4'; // Default filename
-                downloadLink.style.display = 'inline';
-            })
-            .catch(error => {
-                console.error('Error fetching video:', error);
-                alert('Failed to fetch the video. The URL may be protected or inaccessible. Try the alternative tools below.');
-                downloadLink.style.display = 'none';
-            });
         }
     </script>
 </body>
