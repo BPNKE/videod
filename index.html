@@ -21,9 +21,10 @@
             background-color: white;
             border-radius: 8px;
             box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            max-width: 500px;
         }
         input[type="text"] {
-            width: 300px;
+            width: 80%;
             padding: 10px;
             margin: 10px 0;
             border: 1px solid #ccc;
@@ -47,15 +48,37 @@
             color: #007bff;
             font-weight: bold;
         }
+        .instructions {
+            margin-top: 20px;
+            text-align: left;
+            font-size: 14px;
+        }
     </style>
 </head>
 <body>
     <div class="container">
-        <h2>Video Downloader</h2>
-        <p>Enter the direct video URL from videyd.com</p>
-        <input type="text" id="videoUrl" placeholder="Paste video URL here">
+        <h2>Video Downloader for videyd.com</h2>
+        <p>Paste the direct video URL (e.g., .mp4) from videyd.com</p>
+        <input type="text" id="videoUrl" placeholder="Paste direct video URL here">
         <button onclick="initiateDownload()">Download Video</button>
         <a id="downloadLink" href="#" download>Click to Download Video</a>
+        <div class="instructions">
+            <h3>How to Find the Video URL:</h3>
+            <ol>
+                <li>Open the video page (<a href="https://www.videyd.com/e/L9TG40Lm?lv1=doodlix1.org" target="_blank">videyd.com</a>) in your browser.</li>
+                <li>Right-click the video and select "Inspect" or press F12 to open Developer Tools.</li>
+                <li>Go to the "Network" tab, filter by "Media," and play the video to capture the URL (ends in .mp4, .m3u8, etc.).</li>
+                <li>Copy the full URL and paste it above.</li>
+                <li>If no URL appears, the video may be protected. See alternative tools below.</li>
+            </ol>
+            <h3>Alternative Tools:</h3>
+            <p>If the direct URL doesn’t work, try:</p>
+            <ul>
+                <li><a href="https://www.getfvid.com/" target="_blank">Getfvid</a> or <a href="https://en.savefrom.net/" target="_blank">SaveFrom.net</a> (online downloaders).</li>
+                <li>Browser extensions like Video DownloadHelper.</li>
+                <li>Command-line tools like <a href="https://github.com/yt-dlp/yt-dlp" target="_blank">yt-dlp</a> (e.g., run <code>yt-dlp https://www.videyd.com/e/L9TG40Lm?lv1=doodlix1.org</code>).</li>
+            </ul>
+        </div>
     </div>
 
     <script>
@@ -68,9 +91,9 @@
                 return;
             }
 
-            // Validate URL (basic check)
-            if (!videoUrl.match(/\.(mp4|webm|ogv)$/i)) {
-                alert('Please enter a valid video URL (e.g., ending in .mp4, .webm, or .ogv).');
+            // Basic URL validation
+            if (!videoUrl.match(/\.(mp4|webm|m3u8)$/i)) {
+                alert('Please enter a valid video URL (e.g., ending in .mp4, .webm, or .m3u8). If you don’t see one, follow the instructions below.');
                 return;
             }
 
@@ -79,7 +102,7 @@
             downloadLink.style.display = 'inline';
             downloadLink.textContent = 'Click to Download Video';
 
-            // Attempt to fetch the video and create a downloadable blob
+            // Attempt to fetch the video as a blob
             fetch(videoUrl, {
                 headers: new Headers({
                     'Origin': location.origin
@@ -98,7 +121,7 @@
             })
             .catch(error => {
                 console.error('Error fetching video:', error);
-                alert('Failed to fetch the video. Ensure the URL is correct and accessible.');
+                alert('Failed to fetch the video. The URL may be protected or inaccessible. Try the alternative tools below.');
                 downloadLink.style.display = 'none';
             });
         }
